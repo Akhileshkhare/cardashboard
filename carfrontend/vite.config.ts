@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: { "/api": "http://localhost:4000" },
   },
   build: {
-    outDir: "dist/client",
+    outDir: "dist",
     emptyOutDir: true,
   },
   test: {

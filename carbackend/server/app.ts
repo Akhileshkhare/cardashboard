@@ -2,7 +2,6 @@ import bcrypt from "bcryptjs";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { randomBytes, randomUUID } from "node:crypto";
-import path from "node:path";
 import express, {
   type NextFunction,
   type Request,
@@ -233,7 +232,10 @@ export function createApp(
   );
 
   api.get("/auth/me", (request, response) =>
-    response.json({ user: currentUser(request) }),
+    response.json({
+      user: currentUser(request),
+      csrfToken: request.authCsrfToken ?? "",
+    }),
   );
   api.put(
     "/auth/profile",
@@ -790,17 +792,9 @@ export function createApp(
     }),
   );
 
+  app.get("/health", (_request, response) => response.json({ status: "ok" }));
   app.use("/api", api);
   app.use("/api", notFound);
-  if (config.NODE_ENV === "production") {
-    const clientDirectory = path.resolve(process.cwd(), "dist/client");
-    app.use(express.static(clientDirectory, { index: false, maxAge: "1h" }));
-    app.get("*", (_request, response, next) => {
-      response.sendFile(path.join(clientDirectory, "index.html"), (error) => {
-        if (error) next(error);
-      });
-    });
-  }
   app.use(notFound);
   app.use(errorHandler);
   return app;

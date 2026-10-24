@@ -7,9 +7,12 @@ import type {
 import { ApiRequestError } from "./api-errors";
 export { ApiRequestError } from "./api-errors";
 
-const base = "/api";
+const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/+$/, "") ?? "";
+const base = `${apiUrl}/api`;
+let activeCsrfToken = "";
 
 function csrfToken(): string {
+  if (activeCsrfToken) return activeCsrfToken;
   const token = document.cookie
     .split("; ")
     .find((part) => part.startsWith("cc_csrf="))
@@ -53,12 +56,24 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  login: (email: string, password: string, rememberMe = false) =>
-    request<{ user: AuthUser; csrfToken: string }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password, rememberMe }),
-    }),
-  me: () => request<{ user: AuthUser }>("/auth/me"),
+  login: async (email: string, password: string, rememberMe = false) => {
+    const session = await request<{ user: AuthUser; csrfToken: string }>(
+      "/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, password, rememberMe }),
+      },
+    );
+    activeCsrfToken = session.csrfToken;
+    return session;
+  },
+  me: async () => {
+    const session = await request<{ user: AuthUser; csrfToken: string }>(
+      "/auth/me",
+    );
+    activeCsrfToken = session.csrfToken;
+    return session;
+  },
   updateProfile: (data: {
     name: string;
     email: string;
@@ -69,7 +84,10 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  logout: () => request<void>("/auth/logout", { method: "POST" }),
+  logout: async () => {
+    await request<void>("/auth/logout", { method: "POST" });
+    activeCsrfToken = "";
+  },
   dashboard: () => request<DashboardMetrics>("/dashboard"),
   staff: () =>
     request<{ data: { id: number; name: string; role: string }[] }>("/staff"),

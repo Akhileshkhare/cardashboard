@@ -18,10 +18,17 @@ const inspectorUser: AuthUser = {
 };
 const authenticatedAs = (user: AuthUser) => async (request: Request) => {
   request.authUser = user;
+  request.authCsrfToken = "synthetic-csrf-token";
   return user;
 };
 
 describe("REST API authentication, authorization, and validation", () => {
+  it("reports a healthy service without requiring database access", async () => {
+    const response = await request(createApp()).get("/health");
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: "ok" });
+  });
+
   it("rejects an unauthenticated request", async () => {
     const response = await request(createApp()).get("/api/dealers");
     expect(response.status).toBe(401);
@@ -69,6 +76,16 @@ describe("REST API authentication, authorization, and validation", () => {
     ).get("/api/status-requests");
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe("FORBIDDEN");
+  });
+
+  it("returns the session CSRF token to a signed-in cross-origin frontend", async () => {
+    const response = await request(createApp(authenticatedAs(operationsUser)))
+      .get("/api/auth/me");
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      user: operationsUser,
+      csrfToken: "synthetic-csrf-token",
+    });
   });
 
   it("prevents inspectors from listing unrelated customer records", async () => {

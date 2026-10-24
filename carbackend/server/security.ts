@@ -22,7 +22,11 @@ export function setSessionCookies(
   rememberMe: boolean,
 ): void {
   const secure = config.COOKIE_SECURE === "true";
-  const common = { secure, sameSite: "strict" as const, path: "/" };
+  const common = {
+    secure,
+    sameSite: config.COOKIE_SAME_SITE,
+    path: "/",
+  };
   const maxAge = rememberMe ? REMEMBER_SESSION_TTL_MS : undefined;
   response.cookie(SESSION_COOKIE, sessionId, {
     ...common,
@@ -38,7 +42,11 @@ export function setSessionCookies(
 
 export function clearSessionCookies(response: Response): void {
   const secure = config.COOKIE_SECURE === "true";
-  const common = { secure, sameSite: "strict" as const, path: "/" };
+  const common = {
+    secure,
+    sameSite: config.COOKIE_SAME_SITE,
+    path: "/",
+  };
   response.clearCookie(SESSION_COOKIE, { ...common, httpOnly: true });
   response.clearCookie(CSRF_COOKIE, { ...common, httpOnly: false });
 }
@@ -117,6 +125,7 @@ export async function authenticate(request: Request): Promise<AuthUser> {
     email: session.email,
     role: session.role,
   };
+  request.authCsrfToken = session.csrf_token;
   return request.authUser;
 }
 
